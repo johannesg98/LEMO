@@ -15,12 +15,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class TrainLoader(data.Dataset):
-    def __init__(self, clip_seconds=1, clip_fps=30, normalize=False, split='train'):
+    def __init__(self, clip_seconds=1, clip_fps=30, normalize=False, split='train', save_dir=''):
         self.clip_seconds = clip_seconds
         self.clip_len = 40            #clip_seconds * clip_fps  # T frames for each clip
         self.data_dict_list = []
         self.normalize = normalize
         self.split = split  # train/test
+        self.save_dir = save_dir
 
 
     def divide_clip(self, data_path):
@@ -78,10 +79,10 @@ class TrainLoader(data.Dataset):
 
 
             if self.split == 'train':
-                np.savez_compressed('preprocess_stats/{}.npz'.format(prefix), Xmean=Xmean, Xstd=Xstd)
+                np.savez_compressed(os.path.join(self.save_dir, 'preprocess_stats/{}.npz'.format(prefix)), Xmean=Xmean, Xstd=Xstd)
                 self.clip_img_list = (self.clip_img_list - Xmean) / Xstd
             elif self.split == 'test':
-                preprocess_stats = np.load('preprocess_stats/{}.npz'.format(prefix))
+                preprocess_stats = np.load(os.path.join(self.save_dir, 'preprocess_stats/{}.npz'.format(prefix)))
                 self.clip_img_list = (self.clip_img_list - preprocess_stats['Xmean']) / preprocess_stats['Xstd']
 
         print("...normalization done")

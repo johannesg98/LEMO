@@ -11,6 +11,7 @@ from loader.train_loader_smooth import TrainLoader
 from models.AE_sep import Enc, Dec
 from utils.utils import *
 
+#to reload stufff in colab
 import importlib
 import loader.train_loader_smooth as tls
 importlib.reload(tls)
@@ -19,7 +20,7 @@ from loader.train_loader_smooth import TrainLoader
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu_id', type=int, default='0')
 
-parser.add_argument('--save_dir', type=str, default='runs_try', help='path to save train logs and models')
+#parser.add_argument('--save_dir', type=str, default='runs_try', help='path to save train logs and models')
 parser.add_argument('--batch_size', type=int, default=60, help='input batch size')
 parser.add_argument('--num_workers', type=int, default=2, help='# of dataloadeer num_workers')
 parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
@@ -50,7 +51,8 @@ parser.add_argument("--weight_loss_z_smooth", default=1000.0, type=float, help='
 
 #our stuff for LISST
 parser.add_argument('--Mocap_data', type=str, default='/content/drive/MyDrive/LEMO/CMU-canon-MPx8-train.pkl', help='path to CMU Mocap dataset')
-
+parser.add_argument('--Drive_folder', type=str, default='/content/drive/MyDrive/LEMO/', help='path to Drive')
+parser.add_argument('--save_dir', type=str, default='/content/drive/MyDrive/LEMO/runs_try', help='path to save train logs and models')
 
 
 args = parser.parse_args()
@@ -70,14 +72,14 @@ def train(writer, logger):
 
     ################################### set dataloaders ######################################
     print('[INFO] reading training data from datasets ...')
-    train_dataset = TrainLoader(normalize=args.normalize, split='train')
+    train_dataset = TrainLoader(normalize=args.normalize, split='train', save_dir = args.Drive_folder)
     train_dataset.read_data(args.Mocap_data)
     train_dataset.normalize_orientation()
     train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True,
                                                    num_workers=args.num_workers, drop_last=True)
 
     print('[INFO] reading test data from datasets ...')
-    test_dataset = TrainLoader(normalize=args.normalize, split='test')
+    test_dataset = TrainLoader(normalize=args.normalize, split='test', save_dir = args.Drive_folder)
     test_dataset.read_data(args.Mocap_data)
     test_dataset.normalize_orientation()
     test_dataloader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batch_size, shuffle=False,
@@ -95,8 +97,8 @@ def train(writer, logger):
 
     ################################## start training #########################################
     total_steps = 0
-    for epoch in range(args.num_epoch):
-        for step, data in tqdm(enumerate(train_dataloader)):
+    for epoch in tqdm(range(args.num_epoch)):
+        for step, data in (enumerate(train_dataloader)):
             encoder.train()
             decoder.train()
 
