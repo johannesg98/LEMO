@@ -28,7 +28,7 @@ parser.add_argument('--amass_dir', type=str, default='/local/home/szhang/AMASS/a
 parser.add_argument('--body_model_path', type=str, default='/mnt/hdd/PROX/body_models', help='path to smplx body models')
 
 # settings for body representation
-parser.add_argument("--clip_seconds", default=1, type=int, help='length (seconds) of each motion sequence')
+parser.add_argument("--clip_seconds", default=4, type=int, help='length (seconds) of each motion sequence')
 parser.add_argument('--body_mode', type=str, default='global_markers',
                     choices=['global_joints', 'local_joints', 'local_markers', 'global_markers'],
                     help='which body representation to use')
@@ -44,9 +44,6 @@ parser.add_argument("--z_channel", default=64, type=int, help='channel # of late
 parser.add_argument("--weight_loss_rec_v", default=1.0, type=float, help='weight for reconstruction loss')
 parser.add_argument("--weight_loss_z_smooth", default=1000.0, type=float, help='weight for latent smoothness term')
 
-#our stuff for LISST
-parser.add_argument('--Mocap_data', type=str, default='/content/drive/MyDrive/LEMO/CMU-canon-MPx8-train.pkl', help='path to CMU Mocap dataset')
-
 
 
 args = parser.parse_args()
@@ -59,23 +56,38 @@ print('gpu id:', torch.cuda.current_device())
 
 
 def train(writer, logger):
-    
+    # amass_dir = '/local/home/szhang/AMASS/amass'
+    # body_model_path = '/mnt/hdd/PROX/body_models'
+
+    smplx_model_path = os.path.join(args.body_model_path, 'smplx_model')
+
+    amass_train_datasets = ['HumanEva', 'MPI_HDM05', 'MPI_mosh', 'Transitions_mocap',
+                            'ACCAD', 'BMLhandball', 'BMLmovi', 'BioMotionLab_NTroje', 'CMU',
+                            'DFaust_67', 'Eyes_Japan_Dataset', 'MPI_Limits']
+    amass_test_datasets = ['TCD_handMocap', 'TotalCapture', 'SFU']
+    # amass_train_datasets = ['HumanEva', 'BMLmovi']
+    # amass_test_datasets = ['TCD_handMocap', 'TotalCapture']
+
     preprocess_stats_dir = 'preprocess_stats'
     if not os.path.exists(preprocess_stats_dir):
         os.makedirs(preprocess_stats_dir)
 
     ################################### set dataloaders ######################################
-    print('[INFO] reading training data from datasets ...')
-    train_dataset = TrainLoader(normalize=args.normalize, split='train')
-    train_dataset.read_data(args.Mocap_data)
-    train_dataset.normalize_orientation()
+    print('[INFO] reading training data from datasets {}...'.format(amass_train_datasets))
+    train_dataset = TrainLoader(clip_seconds=args.clip_seconds, clip_fps=30, normalize=args.normalize,
+                                split='train', mode=args.body_mode)
+    train_dataset.read_data(amass_train_datasets, args.amass_dir)
+    train_dataset.create_body_repr(with_hand=args.with_hand,
+                                   smplx_model_path=smplx_model_path)
     train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True,
                                                    num_workers=args.num_workers, drop_last=True)
 
-    print('[INFO] reading test data from datasets ...')
-    test_dataset = TrainLoader(normalize=args.normalize, split='test')
-    test_dataset.read_data(args.Mocap_data)
-    test_dataset.normalize_orientation()
+    print('[INFO] reading test data from datasets {}...'.format(amass_test_datasets))
+    test_dataset = TrainLoader(clip_seconds=args.clip_seconds, clip_fps=30, normalize=args.normalize,
+                               split='test', mode=args.body_mode)
+    test_dataset.read_data(amass_test_datasets, args.amass_dir)
+    test_dataset.create_body_repr(with_hand=args.with_hand,
+                                  smplx_model_path=smplx_model_path)
     test_dataloader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batch_size, shuffle=False,
                                                   num_workers=args.num_workers, drop_last=True)
 
@@ -196,7 +208,7 @@ def train(writer, logger):
 
 
 if __name__ == '__main__':
-    run_id = np.random.randint(1, 100000)
+    run_id = random.randint(1, 100000)
     logdir = os.path.join(args.save_dir, str(run_id))  # create new path
     writer = SummaryWriter(log_dir=logdir)
     print('RUNDIR: {}'.format(logdir))

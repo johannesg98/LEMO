@@ -15,81 +15,69 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class TrainLoader(data.Dataset):
-    def __init__(self, clip_seconds=1, clip_fps=30, normalize=False, split='train'):
+    def __init__(self, clip_seconds=8, clip_fps=30, normalize=False, split='train', mode=None):
         self.clip_seconds = clip_seconds
-        self.clip_len = 40            #clip_seconds * clip_fps  # T frames for each clip
+        self.clip_len = clip_seconds * clip_fps  # T frames for each clip
         self.data_dict_list = []
         self.normalize = normalize
         self.split = split  # train/test
+        self.mode = mode
 
 
-    def divide_clip(self, data_path):
-        print("read .pkl file ...")
-        data = np.load(data_path, allow_pickle=True)    #dict_keys(['J_locs', 'J_rotmat', 'J_len']), J_locs shape = (10158, 80, 31, 3), J_rotmat = (10158, 80, 31, 3, 3), J-len = (10158, 80, 31)
+    def divide_clip(self, dataset_name='HumanEva', amass_dir=None):
+        # read amass data
+        npz_fnames = glob.glob(os.path.join(amass_dir, dataset_name, '*/*_poses.npz'))  # name list of all npz sequence files in current dataset
+        fps_list = []
+        # print('sequence #: ', len(npz_fnames))
+        cnt_sub_clip = 0
+        # print('reading sequences in %s...' % (dataset_name))
+        for npz_fname in npz_fnames:
+            cdata = np.load(npz_fname)
+            fps = int(cdata['mocap_framerate'])  # check fps of current sequence
+            clip_len = self.clip_seconds * fps
+            fps_list.append(fps)
+            if fps == 150:
+                sample_rate = 5
+            elif fps == 120:
+                sample_rate = 4
+            elif fps == 60:
+                sample_rate = 2
+            else:
+                continue
 
-        num_sequenzes = data['J_locs'].shape[0]
-        num_clips_per_sequenze = int(data['J_locs'].shape[0]/self.clip_len)     #should be 2
+            N = len(cdata['poses'])  # total frame number of the current sequence
+            if N >= clip_len:
+                num_valid_clip = int(N/clip_len)
+                seq_trans = cdata['trans']
+                seq_poses = cdata['poses']
+                # seq_dmpls = cdata['dmpls']
+                seq_betas = cdata['betas']
+                seq_gender = str(cdata['gender'])
+                seq_fps = int(cdata['mocap_framerate'])
 
-        print("reading data per person...")
-        for s in tqdm(range(num_sequenzes)):
-            for clipId in range(num_clips_per_sequenze):
+                for i in range(num_valid_clip):
+                    # pose: 156-d (3 global rotation + 63 body pose + 45 left hand pose + 45 right hand pose)
+                    # dmpls: 8-d, trans: 3-d, betas: 16-d
+                    data_dict = {}
+                    data_dict['trans'] = seq_trans[(clip_len * i):clip_len * (i + 1)][::sample_rate, ]  # [T, 3]
+                    data_dict['poses'] = seq_poses[(clip_len * i):clip_len * (i + 1)][::sample_rate, ]  # [T, 156]
+                    data_dict['betas'] = seq_betas  # [10]
+                    data_dict['gender'] = seq_gender  # male/female
+                    data_dict['mocap_framerate'] = seq_fps
+                    self.data_dict_list.append(data_dict)
+                    cnt_sub_clip += 1
+            else:
+                continue
 
-                data_dict = {}
-                start = clipId*self.clip_len
-                stop = (clipId+1)*self.clip_len
-                data_dict['r_locs'] = data['J_locs'][s,start:stop,0,...].reshape((self.clip_len,1,1,3))
-                data_dict['J_rotmat'] = data['J_rotmat'][s,start:stop,...].reshape((self.clip_len,1,31,3,3))
-                data_dict['J_shape'] = data['J_len'][s,start:stop,...].mean(axis=0).reshape((1,31))
-                data_dict['J_locs_3d'] = data['J_locs'][s,start:stop,...].reshape((self.clip_len,1,31,3))
-                
-                self.data_dict_list.append(data_dict)
-
-        print("...data all read")
+        # print('get {} sub clips from dataset {}'.format(cnt_sub_clip, dataset_name))
+        # print('fps range:', min(fps_list), max(fps_list), '\n')
 
 
-    def read_data(self, data_path):
-        self.divide_clip(data_path)
+    def read_data(self, amass_datasets, amass_dir):
+        for dataset_name in tqdm(amass_datasets):
+            self.divide_clip(dataset_name, amass_dir)
         self.n_samples = len(self.data_dict_list)
         print('[INFO] get {} sub clips in total.'.format(self.n_samples))
-
-
-    def normalize_orientation(self):
-        
-        print("normalize orientation...")
-        self.clip_img_list = []
-        for i in tqdm(range(self.n_samples)):
-            #rotate/translate to world origin
-            transl = self.data_dict_list[i]['r_locs'][0,0,0,:]        #shape (3)
-            rot = self.data_dict_list[i]['J_rotmat'][0,0,0,:,:].transpose()         #shape (3,3)
-
-            clip_image = self.data_dict_list[i]['J_locs_3d'][:,0,:,:] - transl      #(40,31,3)
-            clip_image = np.einsum('ij,...j->...i',rot,clip_image)
-            clip_image = clip_image.reshape(clip_image.shape[0], -1)            #(40,93)
-
-            self.clip_img_list.append(clip_image)
-
-        self.clip_img_list = np.asarray(self.clip_img_list)     #(N,40,93)
-        print("..orientation normalized, normalize values...")
-
-        if self.normalize:
-            prefix = 'preprocess_stats_for_our_prior'
-            Xmean = self.clip_img_list.mean(axis=1).mean(axis=0)[np.newaxis, np.newaxis, :]  # [1, 1, 93]
-            Xstd = np.ones(self.clip_img_list.shape[-1]) * self.clip_img_list.std()  # [93]
-
-
-            if self.split == 'train':
-                np.savez_compressed('preprocess_stats/{}.npz'.format(prefix), Xmean=Xmean, Xstd=Xstd)
-                self.clip_img_list = (self.clip_img_list - Xmean) / Xstd
-            elif self.split == 'test':
-                preprocess_stats = np.load('preprocess_stats/{}.npz'.format(prefix))
-                self.clip_img_list = (self.clip_img_list - preprocess_stats['Xmean']) / preprocess_stats['Xstd']
-
-        print("...normalization done")
-
-        
-
-
-        
 
 
     def create_body_repr(self, with_hand=False, smplx_model_path=None):
