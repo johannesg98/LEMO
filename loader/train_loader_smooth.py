@@ -37,6 +37,9 @@ class TrainLoader(data.Dataset):
                 data_dict = {}
                 start = clipId*self.clip_len
                 stop = (clipId+1)*self.clip_len
+                print(start, stop,s)
+                print(data['J_locs'].shape)
+                print(data['J_locs'][s,start:stop,0,...].shape)
                 data_dict['r_locs'] = data['J_locs'][s,start:stop,0,...].reshape((self.clip_len,1,1,3))
                 data_dict['J_rotmat'] = data['J_rotmat'][s,start:stop,...].reshape((self.clip_len,1,31,3,3))
                 data_dict['J_shape'] = data['J_len'][s,start:stop,...].mean(axis=0).reshape((1,31))
