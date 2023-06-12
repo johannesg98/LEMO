@@ -28,7 +28,7 @@ class TrainLoader(data.Dataset):
         data = np.load(data_path, allow_pickle=True)    #dict_keys(['J_locs', 'J_rotmat', 'J_len']), J_locs shape = (10158, 80, 31, 3), J_rotmat = (10158, 80, 31, 3, 3), J-len = (10158, 80, 31)
 
         num_sequenzes = data['J_locs'].shape[0]
-        num_clips_per_sequenze = int(data['J_locs'].shape[0]/self.clip_len)     #should be 2
+        num_clips_per_sequenze = int(data['J_locs'].shape[1]/self.clip_len)     #should be 2
 
         print("reading data per person...")
         for s in tqdm(range(num_sequenzes)):
@@ -37,9 +37,6 @@ class TrainLoader(data.Dataset):
                 data_dict = {}
                 start = clipId*self.clip_len
                 stop = (clipId+1)*self.clip_len
-                print(start, stop,s)
-                print(data['J_locs'].shape)
-                print(data['J_locs'][s,start:stop,0,...].shape)
                 data_dict['r_locs'] = data['J_locs'][s,start:stop,0,...].reshape((self.clip_len,1,1,3))
                 data_dict['J_rotmat'] = data['J_rotmat'][s,start:stop,...].reshape((self.clip_len,1,31,3,3))
                 data_dict['J_shape'] = data['J_len'][s,start:stop,...].mean(axis=0).reshape((1,31))
