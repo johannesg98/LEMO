@@ -11,6 +11,9 @@ from loader.train_loader_smooth import TrainLoader
 from models.AE_sep import Enc, Dec
 from utils.utils import *
 
+import importlib
+importlib.reload(loader.train_loader_smooth)
+from loader.train_loader_smooth import TrainLoader
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu_id', type=int, default='0')
