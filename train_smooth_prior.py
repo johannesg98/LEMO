@@ -97,8 +97,8 @@ def train(writer, logger):
 
     ################################## start training #########################################
     total_steps = 0
-    for epoch in tqdm(range(args.num_epoch)):
-        for step, data in (enumerate(train_dataloader)):
+    for epoch in range(args.num_epoch):
+        for step, data in tqdm(enumerate(train_dataloader)):
             encoder.train()
             decoder.train()
 
