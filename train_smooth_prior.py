@@ -12,7 +12,8 @@ from models.AE_sep import Enc, Dec
 from utils.utils import *
 
 import importlib
-importlib.reload(loader.train_loader_smooth)
+import loader.train_loader_smooth as tls
+importlib.reload(tls)
 from loader.train_loader_smooth import TrainLoader
 
 parser = argparse.ArgumentParser()
