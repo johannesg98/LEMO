@@ -50,7 +50,7 @@ class TrainLoader(data.Dataset):
         torch.manual_seed(42)
         indices = torch.randperm(len(self.data_dict_list))
 
-        train_indices, test_indices = indices[:split], indices[split:]
+        train_indices, test_indices = indices[:split].tolist(), indices[split:].tolist()
         if self.split == 'train':
             self.data_dict_list = self.data_dict_list[train_indices]
         elif self.split == 'test':
