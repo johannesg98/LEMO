@@ -98,6 +98,8 @@ def train(writer, logger):
         save_path = os.path.join(writer.file_writer.get_logdir(), "Dec_last_model.pkl")
         decoder.load_state_dict(torch.load(save_path))
 
+        print("checkpoints {} loaded!".format(args.last_checkpoint))
+
     optimizer = optim.Adam(filter(lambda p: p.requires_grad,
                                   itertools.chain(encoder.parameters(), decoder.parameters())),
                            lr=args.lr)
