@@ -53,6 +53,7 @@ parser.add_argument("--weight_loss_z_smooth", default=1000.0, type=float, help='
 parser.add_argument('--Mocap_data', type=str, default='/content/drive/MyDrive/LEMO/CMU-canon-MPx8-train.pkl', help='path to CMU Mocap dataset')
 parser.add_argument('--Drive_folder', type=str, default='/content/drive/MyDrive/LEMO/', help='path to Drive')
 parser.add_argument('--save_dir', type=str, default='/content/drive/MyDrive/LEMO/runs_try', help='path to save train logs and models')
+parser.add_argument('--last_checkpoint', type=str, default='None', help='checkpoint number as string')
 
 
 args = parser.parse_args()
@@ -89,6 +90,13 @@ def train(writer, logger):
     ################################## set train configs ######################################
     encoder = Enc(downsample=args.downsample, z_channel=args.z_channel).to(device)
     decoder = Dec(downsample=args.downsample, z_channel=args.z_channel).to(device)
+
+    #load last checkpoints
+    if args.last_checkpoint != 'None':
+        save_path = os.path.join(writer.file_writer.get_logdir(), "Enc_last_model.pkl")
+        encoder.load_state_dict(torch.load(save_path))
+        save_path = os.path.join(writer.file_writer.get_logdir(), "Dec_last_model.pkl")
+        decoder.load_state_dict(torch.load(save_path))
 
     optimizer = optim.Adam(filter(lambda p: p.requires_grad,
                                   itertools.chain(encoder.parameters(), decoder.parameters())),
@@ -203,7 +211,10 @@ def train(writer, logger):
 
 if __name__ == '__main__':
     run_id = np.random.randint(1, 100000)
-    logdir = os.path.join(args.save_dir, str(run_id))  # create new path
+    if args.last_checkpoint == 'None':
+        logdir = os.path.join(args.save_dir, str(run_id))  # create new path
+    else:
+        logdir = os.path.join(args.save_dir, args.last_checkpoint)
     writer = SummaryWriter(log_dir=logdir)
     print('RUNDIR: {}'.format(logdir))
     sys.stdout.flush()

@@ -45,6 +45,17 @@ class TrainLoader(data.Dataset):
                 
                 self.data_dict_list.append(data_dict)
 
+        #split in test and train
+        split = int(0.8 * len(self.data_dict_list))
+        torch.manual_seed(42)
+        indices = torch.randperm(len(self.data_dict_list))
+
+        train_indices, test_indices = indices[:split], indices[split:]
+        if self.split == 'train':
+            self.data_dict_list = self.data_dict_list[train_indices]
+        elif self.split == 'test':
+            self.data_dict_list = self.data_dict_list[test_indices]
+
         print("...data all read")
 
 
