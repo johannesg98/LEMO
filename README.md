@@ -1,7 +1,7 @@
 # Digital Human Project: Learning Motion Priors for LISST Multi-Person Capturing
-This code is training a convolutional autoencoder to represent LISST motions as latent variables. These latent variables have a smoothenes constraint, so that they can be used as a motion prior for further motion reconstruction. The implementation is based on the paper "Learning Motion Priors for 4D Human Body Capture in 3D Scenes": https://arxiv.org/pdf/2108.10399.pdf
+This code is training a convolutional autoencoder to represent LISST motions as latent variables. These latent variables have a smoothness constraint, so that they can be used as a motion prior for further motion reconstruction. The implementation is based on the paper "Learning Motion Priors for 4D Human Body Capture in 3D Scenes": https://arxiv.org/pdf/2108.10399.pdf
 
-##Usage
+## Usage
 The current implementation can be easily run on Google Colab. It is basically Plug-and-Play.
 
 * Download the dataset: https://polybox.ethz.ch/index.php/s/s753qhM7Axmfvdp
